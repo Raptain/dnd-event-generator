@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Генератор событий</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c2c 0%, #2a1a0e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #f0e6c5;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 2.5em; margin-bottom: 10px; color: #ffd700; text-shadow: 3px 3px 0 #4a2a0a; }
+        .subtitle { text-align: center; color: #c4a86b; margin-bottom: 30px; font-style: italic; }
+        .stats { text-align: center; margin-bottom: 20px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 10px; }
+        .generator-card { background: rgba(30, 20, 15, 0.9); border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #c4a86b; }
+        .generate-btn {
+            display: block; width: 100%; padding: 15px; font-size: 1.5em; font-weight: bold;
+            background: linear-gradient(135deg, #8b5a2b 0%, #5a3a1a 100%);
+            color: #ffd700; border: none; border-radius: 50px; cursor: pointer;
+            margin-bottom: 30px;
+        }
+        .generate-btn:hover { transform: scale(1.02); background: linear-gradient(135deg, #a06a30 0%, #6a4520 100%); }
+        .event-card { background: rgba(0,0,0,0.6); border-radius: 15px; padding: 25px; border-left: 5px solid #ffd700; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .event-title { font-size: 1.8em; color: #ffd700; margin-bottom: 15px; border-bottom: 1px solid #c4a86b; padding-bottom: 10px; }
+        .event-meta { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .meta-tag { background: rgba(139, 90, 43, 0.5); padding: 5px 12px; border-radius: 20px; font-size: 0.85em; color: #ffd700; }
+        .event-section { margin-bottom: 15px; }
+        .event-section h3 { color: #c4a86b; font-size: 1.1em; margin-bottom: 5px; }
+        .event-section p { line-height: 1.5; color: #e0d6b0; }
+        .reward { background: rgba(0, 100, 0, 0.3); padding: 10px; border-radius: 10px; margin-top: 15px; }
+        .loading { text-align: center; padding: 40px; color: #c4a86b; }
+        footer { text-align: center; margin-top: 30px; color: #6a4a2a; }
+        @media (max-width: 600px) { .event-title { font-size: 1.3em; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏜️ D&D Генератор событий</h1>
+        <div class="subtitle">Пустыня — Случайные встречи</div>
+        <div class="stats" id="stats">Загрузка...</div>
+        <div class="generator-card">
+            <button class="generate-btn" onclick="generateEvent()">🎲 Сгенерировать событие 🎲</button>
+            <div id="event-container">
+                <div class="loading">Нажмите на кнопку</div>
+            </div>
+        </div>
+        <footer>Всего событий: <span id="event-count">---</span></footer>
+    </div>
+    <script>
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/events-count');
+                const data = await response.json();
+                document.getElementById('stats').innerHTML = `📚 База: ${data.count} событий`;
+                document.getElementById('event-count').textContent = data.count;
+            } catch(e) {}
+        }
+        async function generateEvent() {
+            const container = document.getElementById('event-container');
+            container.innerHTML = '<div class="loading">🎲 Бросаем кости...</div>';
+            try {
+                const response = await fetch('/api/random-event');
+                const event = await response.json();
+                if (event.error) { container.innerHTML = `<div class="loading">❌ ${event.error}</div>`; return; }
+                const dangerStars = '⭐'.repeat(Math.min(event.danger, 10)) + '☆'.repeat(10 - Math.min(event.danger, 10));
+                container.innerHTML = `
+                    <div class="event-card">
+                        <div class="event-title">📜 ${escapeHtml(event.title)}</div>
+                        <div class="event-meta">
+                            <span class="meta-tag">🏷️ ${escapeHtml(event.category)}</span>
+                            <span class="meta-tag">⚔️ ${escapeHtml(event.difficulty)}</span>
+                            <span class="meta-tag">💀 Опасность ${event.danger}/10 ${dangerStars}</span>
+                        </div>
+                        <div class="event-section"><h3>📖 Сюжет</h3><p>${escapeHtml(event.story)}</p></div>
+                        <div class="reward"><h3>🎁 Награда</h3><p>${escapeHtml(event.reward)}</p></div>
+                        ${event.development && event.development !== 'nan' ? `<div class="event-section"><h3>🔮 Развитие</h3><p>${escapeHtml(event.development)}</p></div>` : ''}
+                    </div>
+                `;
+            } catch(e) { container.innerHTML = '<div class="loading">❌ Ошибка</div>'; }
+        }
+        function escapeHtml(text) { if (!text) return 'Нет данных'; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        loadStats();
+    </script>
+</body>
+</html>
